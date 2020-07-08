@@ -8,12 +8,6 @@ from scipy import stats
 def border(pattern:str, length:int): # 框線
     print(pattern*length)
 
-def var_list(v, l): #自動產生變數名稱
-    if v == None: 
-       return ["v"+str(i+1) for i in range(l)]
-    else:
-        return v
-
 #_____________ Description _____________
 
 #_____________ Variance _____________
