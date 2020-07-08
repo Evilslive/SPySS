@@ -16,15 +16,10 @@ def var_list(v, l): #自動產生變數名稱
 
 #_____________ Description _____________
 
-
 #_____________ Variance _____________
 
 def cov(x, y=None, df=0):
-    '''
-        Covariance matrix  
-        cp = Σ(x-xbar)*(y-ybar), 離均差交乘積和  
-        cxy = cp/n, 共變異數  
-    '''
+    '''Covariance matrix'''
     return np.cov(x, y, ddof=df) # 離均差平方和之平均
 
 #_____________ Hypothesis _____________
@@ -48,7 +43,7 @@ class Linear:
         if varName == None:
             self.name = ["var"+str(i+1) for i in range(len(self.x))]
             self.name.append('y')
-        self.xTx = np.dot(   x_1, np.transpose(x_1)) # 順序?
+        self.xTx = np.dot(   x_1, np.transpose(x_1))
         self.xTy = np.dot(self.y, np.transpose(x_1))
         self.ssT, self.ssR, self.ssE = 0, 0, 0 # ss()
         self.msR, self.msE = 0, 0 # anova
@@ -58,17 +53,7 @@ class Linear:
         return np.dot(self.xTy, np.linalg.inv(self.xTx))
 
     def corr(self):
-        '''
-            Correlation coefficients  
-            r = σxy / (σx*σy)^(.5)  
-              = np.cov(y, x) / (np.std(x)*np.std(y))  
-              = (SSR / SST)^(.5)
-            以樣本r推論母群ρ時, 標準差分母 n-1, 相關係數略小  
-            --規約--  
-            0.7 <= r < 1,   高  
-            0.3 <= r < 0.7, 中  
-            0   <  r < 0.3, 低  
-        '''
+        '''Correlation coefficients'''
         return np.corrcoef(self.x, self.y)
 
     def corr_tb(self):
@@ -82,13 +67,13 @@ class Linear:
         border("-", 47)
         for i in range(np.shape(r)[0]):
             for j in range(np.shape(r)[1]):
-                if i < j: # 優化, 上三角形
+                if i < j: # 上三角形
                     mse = ((1-r[i][j]**2)/(self.n-2))**.5
                     if mse == 0:
                         print("{:10}--{}\t{}".format(self.name[i],self.name[j],"完全重疊"))
                     else:
-                        t[i][j] = r[i][j] / mse  # 分母為標準誤
-                        p[i][j] = 1 - stats.t.cdf(abs(t[i][j]), df=self.n-2) # 還沒設定單雙尾、自由度, 計算cdf時要小心t值可能是負的
+                        t[i][j] = r[i][j] / mse
+                        p[i][j] = 1 - stats.t.cdf(abs(t[i][j]), df=self.n-2)
                         print("{:4}--{:4}\t{:.3f}\t{:.2f}\t{:d}\t{:.3f}".format(self.name[i],self.name[j],r[i][j],t[i][j],self.n-2,p[i][j]))
         border("=", 47)
 
@@ -97,30 +82,13 @@ class Linear:
             SSR = b'X'Y - (1/n)*Y'JY
             SSE = Y'Y - b'X'Y
             SST = Y'Y - (1/n)*Y'JY
-
-            乘積級距公式 Product-moment formula  
-            y = ax +b,   x = cy +d  
-            a = σxy/σ2x, c = σxy/σ2y
-            r = ( bxy * byx )**.5
-
-            # 標準方程組
-            1. Σy   = b0*n   + b1*Σx1    + b2*Σx2
-            2. Σx1y = b0*Σx1 + b1*Σx1**2 + b2*Σx1x2
-            3. Σx2y = b0*Σx2 + b1*Σx1x2  + b2*Σx2**2
-
-            ## b == (x'x)^(-1)*(x'y)
-            
-            # 矩陣  
-            [bo]   [  n  Σx1   Σx2  ]   [Σy  ]  
-            [b1] * [ Σx1 Σx1^2 Σx1x2] = [Σx1y]  
-            [b2]   [ Σx2 Σx1x2 Σx2^2]   [Σx2y]  
         '''
         b = self.mtx_B()
         J = np.ones((self.n, self.n))
         yTy = np.dot(self.y, np.transpose(self.y))
         yTJy = self.y.dot(J).dot(np.transpose(self.y))
         self.ssT = yTy - (1/self.n)*yTJy
-        self.ssR = b.dot(self.xTy) - (1/self.n)*yTJy # b為1D怎麼擺都可以
+        self.ssR = b.dot(self.xTy) - (1/self.n)*yTJy
         #self.ssE = yTy - b.dot(self.xTy)
         self.ssE = self.ssT - self.ssR
 
@@ -140,44 +108,12 @@ class Linear:
         border("=", 72)
 
     def beta(self, b):
-        '''
-            矩陣法?
-        '''
         beta = [0.0]*(len(b)-1)
         for i in  range(len(b)-1):
             beta[i] = b[i+1] * pow(cov(self.x[i])/cov(self.y), .5) # const have no beta
         return [""] + beta
 
-    def vif(self):
-        '''
-            VIF = 1/ (1-Rj2)  
-            xj作為dv, 與其他x的判定係數Rj2  
-            建議VIF > 10, 該變數需刪除  
-            觀察：  
-            1. 整體 F、R2很大，但個別判定係數 t 很小  
-            補救：
-            1.刪除x
-            2.增加n
-            3.用 脊迴估計量
-            4.用 PCA變數 取代共線性變數
-        '''
-        return
-
     def coef_tb(self):
-        '''
-            β1檢定  
-            Var(β1_hat) = σ**2 / Σ(Xi-Xmean)**2  
-            E(MSE) = σ**2  
-            E(MSR) = σ**2 + β1**2 * Σ(Xi-Xmean)**2  
-            T = (β1 - b1) / ( MSE * (1/ Σ(Xi-Xmean)**2)**.5 ) > tα(n-2)  
-
-            β0檢定  
-            Var(β0_hat) = [1/n + Xmean**2 / Σ(Xi-Xmean)**2] * σ**2  
-            T = (β0 - b0) / ( MSE * (Xmean**2 / (1/n +  Σ(Xi-Xmean)**2))**.5 )  
-
-            b = Sxy/Sxx = rxy * Sy/Sx  
-            beta = Sxy/(Sxx*Syy)**.5  
-        '''
         r = self.corr()
         b = self.mtx_B()
         beta = self.beta(b)
@@ -218,94 +154,7 @@ class Linear:
         return ""
 
     def model(self):
+        '''Model Select'''
         return
 
-kk = Linear(x,y).report()
-print(kk)
-
-#_____________ Correlation _____________
-
-'''Fisher檢定
-當 ρ ≠ 0時
-Z = (Zr - Zρ) /( 1/ (n-3)**.5)
-'''
-
-def corr_rank(x, y):
-    '''
-        Spearman's rank correlation coefficient
-    '''
-    a = x # 轉為rank
-    b = y
-    n = len(x)
-    d = [(a[i] - b[i])**2 for i in range(n)]
-    r_rank = 1 - 6 * sum(d) / (n**3-n)
-    # 小樣本時 t 同pearson
-    # 大樣本時 z = r * (n-1)**.5
-    return r_rank
-
-
-#_____________ Logistic _____________
-
-class Logistic():
-    def __init__(self):
-        return
-
-#_____________ Method of Moment, MOM _____________
-
-#_____________ Ordinary Least Square Estimate, OLSE _____________
-
-def OLSE():
-    '''
-        最小平方法, 定理:
-        1. 配方法求極值
-        2. 柯西−施瓦茲不等式
-        3. 相關係數
-
-        Gauss-Markov Theorem  
-        當 誤差 滿足 1.零均值 2.同標準差 3.彼此獨立  
-        則 迴歸係數的最佳線性無偏估計(BLUE)就是LS  
-    '''
-    return
-
-def aic(): 
-    '''
-    Akaike's Information Criterion (赤池訊息量準則,AIC)
-    AIC = 2k - 2ln(L) # k為參數數量、L是似然函數
-    AIC = 2k + n*ln(RSS/n) # n為觀察數、RSS為殘差平方和
-    小樣本時,
-        AICc = AIC + 2k(k+1)/(n-k-1)
-    '''
-    return
-
-def bic():
-    '''
-    Bayesian Information Criteria (BIC)
-    BIC = ln(n)*k - 2ln(L) # 同AIC, 越小表示模式的解釋力越好
-    與AIC相比, 當n>=8時(多數情況的迴歸都是大於), 
-        參數k越多, BIC產生的懲罰項就越大, 因此BIC更傾向於選擇參數少的簡單模型
-    '''
-    return
-
-#_____________ Maximum Likelihood Estimate, MLE _____________
-
-def ML():
-    return
-
-#_____________ Model Selection _____________
-
-def cs():  # 柯西−施瓦茲不等式 Cauchy-Schwarz
-    return
-
-def Mallow_Cp():
-    return
-
-def hq():
-    '''
-        Hannan-Quinn Criterion (HQ)
-        HQ = ln(ln(n))*k - 2ln(L)
-    '''
-    return
-
-
-
-
+    
